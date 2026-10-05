@@ -489,6 +489,13 @@ describe('OpenAI Codex WebSocket transport', () => {
       cooldowns: [] satisfies string[],
     },
     {
+      name: 'WebSocket service restart',
+      fail: (socket: WebSocket) => socket.close(1012, 'service restart'),
+      message: 'closed before response completed (code 1012',
+      statusCode: undefined,
+      cooldowns: [] satisfies string[],
+    },
+    {
       name: 'Grok-style 403',
       fail: (socket: WebSocket) =>
         socket.send(
@@ -589,8 +596,8 @@ describe('OpenAI Codex WebSocket transport', () => {
     expect(Object.keys((await loadState()).cooldowns)).toEqual(['openai:account-b'])
   })
 
-  test('retries a WebSocket 1006 drop after visible output without cooling down', async () => {
-    // Unlike a quota/auth error, a transient 1006 drop is retryable even after
+  test.each([1006, 1012])('retries a WebSocket %s drop after visible output without cooling down', async (code) => {
+    // Unlike a quota/auth error, a transient transport drop is retryable even after
     // output has started, so OpenCode restarts the turn on the same account.
     const server = await startCodexServer(({ authorization, socket }) => {
       if (authorization !== 'Bearer access-b') {
@@ -602,7 +609,7 @@ describe('OpenAI Codex WebSocket transport', () => {
       for (const event of completionEvents({ text: 'partial', responseId: 'partial-1' }).slice(0, 4)) {
         socket.send(JSON.stringify(event))
       }
-      setTimeout(() => socket.terminate(), 20)
+      setTimeout(() => code === 1006 ? socket.terminate() : socket.close(code, 'service restart'), 20)
     })
     servers.push(server)
     process.env.SUBROUTER_OPENAI_BASE_URL = server.url
@@ -619,7 +626,7 @@ describe('OpenAI Codex WebSocket transport', () => {
     if (!APICallError.isInstance(error)) throw error
     expect(error.isRetryable).toBe(true)
     expect(error.statusCode).toBeUndefined()
-    expect(error.message).toContain('closed before response completed (code 1006')
+    expect(error.message).toContain(`closed before response completed (code ${code}`)
     expect(parts.flatMap((part) => (part.type === 'text-delta' ? [part.delta] : []))).toEqual(['partial'])
     expect(server.connections.map((item) => item.authorization)).toEqual(['Bearer access-b'])
     expect(Object.keys((await loadState()).cooldowns)).toEqual([])
