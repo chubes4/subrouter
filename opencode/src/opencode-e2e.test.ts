@@ -357,7 +357,9 @@ afterAll(async () => {
     if (value === undefined) delete process.env[key]
     else process.env[key] = value
   }
-  await rm(home, { recursive: true, force: true })
+  // SDK close() signals the process without awaiting exit. Its final writes can
+  // briefly race recursive removal; use the filesystem's bounded contention retry.
+  await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
 })
 
 describe('opencode + subrouter provider', () => {
