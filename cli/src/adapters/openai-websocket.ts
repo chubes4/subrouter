@@ -184,7 +184,7 @@ function requestReuse(body: JSONObject, headers: Record<string, string>): Reques
   const { input, stream: _stream, background: _background, ...framing } = body
   const transportHeaders = normalizeHeaders(withoutInternalHeaders({ headers })?.headers)
   // Session labels select/attribute a request; they do not change its full input.
-  for (const name of ['x-session-affinity', 'x-session-id', 'session-id', 'content-length']) {
+  for (const name of ['x-session-affinity', 'x-session-id', 'session-id', 'x-opencode-session-id', 'content-length']) {
     delete transportHeaders[name]
   }
   const items = body.previous_response_id || body.conversation

@@ -38,6 +38,7 @@ function forkOptions(session: string, text: string): LanguageModelV3CallOptions 
       [OPENAI_WEBSOCKET_SESSION_HEADER]: session,
       'x-session-affinity': session,
       'X-Session-Id': session,
+      'x-opencode-session-id': session,
     },
   }
 }
